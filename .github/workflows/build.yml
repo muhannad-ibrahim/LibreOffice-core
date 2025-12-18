@@ -23,6 +23,7 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0 # Shallow clone for faster checkout
+
       
       
       - name: Install build dependencies
@@ -247,9 +248,23 @@ jobs:
         run: |
           echo "Creating external tar file from LibreOffice workdir/UnpackedTarball..."
           if [ -d "workdir/UnpackedTarball" ]; then
-            tar -czf libreoffice-external-$(date +%Y%m%d-%H%M%S).tar.gz -C workdir UnpackedTarball
-            echo "External tar created successfully"
-            ls -lh libreoffice-external-*.tar.gz
+            # Fix permissions on all files in UnpackedTarball to ensure they're readable
+            echo "Fixing permissions on UnpackedTarball files..."
+            chmod -R u+r workdir/UnpackedTarball 2>/dev/null || sudo chmod -R u+r workdir/UnpackedTarball 2>/dev/null || true
+            chmod -R u+rx workdir/UnpackedTarball 2>/dev/null || sudo chmod -R u+rx workdir/UnpackedTarball 2>/dev/null || true
+            
+            # Create tar file
+            TAR_FILE="libreoffice-external-$(date +%Y%m%d-%H%M%S).tar.gz"
+            tar -czf "$TAR_FILE" -C workdir UnpackedTarball
+            
+            # Check if tar was created successfully
+            if [ -f "$TAR_FILE" ]; then
+              echo "External tar created successfully: $TAR_FILE"
+              ls -lh "$TAR_FILE"
+            else
+              echo "Warning: Failed to create tar file"
+              exit 1
+            fi
           else
             echo "Warning: workdir/UnpackedTarball directory not found, skipping tar creation"
           fi
