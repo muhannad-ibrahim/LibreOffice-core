@@ -4,9 +4,9 @@
 	branch = .
 [submodule "helpcontent2"]
 	path = helpcontent2
-	url = https://gerrit.libreoffice.org/dictionaries
+	url = https://gerrit.libreoffice.org/help
 	branch = .
 [submodule "translations"]
 	path = translations
-	url = https://gerrit.libreoffice.org/dictionaries
+	url = https://gerrit.libreoffice.org/translations
 	branch = .
