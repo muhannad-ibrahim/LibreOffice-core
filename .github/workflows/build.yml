@@ -180,7 +180,6 @@ jobs:
               --with-distro=CPLinux-LOKit \
               --with-extra-cc-flags="--coverage" \
               --with-extra-cxx-flags="--coverage" \
-              --with-system-libpng \
               --with-system-jpeg \
               --disable-symbols \
               --with-system-freetype \
