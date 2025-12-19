@@ -23,8 +23,6 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0 # Shallow clone for faster checkout
-
-      
       
       - name: Install build dependencies
         run: |
@@ -168,80 +166,33 @@ jobs:
               libboost-filesystem-dev \
               libsane-dev \
               unixodbc-dev \
-              libcurl4-openssl-dev \
+              libcurl4-gnutls-dev \
+              libpoppler-dev \
               doxygen
-
           
       - name: Configure build
         run: |
           # Configure with coverage flags for compilation and linking
           # Set LDFLAGS to include coverage for linking gcov runtime
-          export CC="gcc"
-          export CXX="g++"
+          export CC="gcc-12"
+          export CXX="g++-12"
           ./autogen.sh \
-              --disable-epm \
-              --without-package-format \
-              --enable-debug \
+              --with-distro=CPLinux-LOKit \
               --with-extra-cc-flags="--coverage" \
               --with-extra-cxx-flags="--coverage" \
-              --with-system-libs \
-              --with-system-md4c=no \
-              --with-system-xmlsec=no \
-              --with-system-mdds=no \
-              --with-system-dragonbox=no \
-              --with-system-fast-float=no \
-              --with-system-frozen=no \
-              --with-system-libfixmath=no \
-              --with-system-orcus=no \
-              --with-system-harfbuzz=no \
-              --with-system-graphite=no \
-              --with-system-argon2=no \
-              --with-system-zxcvbn=no \
-              --disable-firebird-sdbc \
-              --disable-skia \
-              --enable-symbols \
-              --disable-cups \
-              --disable-zxing \
-              --disable-coinmp \
-              --disable-gpgmepp \
-              --disable-dbus \
-              --disable-epm \
-              --disable-libcmis \
-              --disable-gio \
-              --disable-gstreamer-1-0 \
-              --disable-gtk3 \
-              --disable-gtk4 \
-              --disable-introspection \
-              --disable-ldap \
-              --disable-lotuswordpro \
-              --disable-lpsolve \
-              --disable-mariadb-sdbc \
-              --disable-odk \
-              --disable-online-update \
+              --with-system-libpng \
+              --with-system-jpeg \
+              --with-system-freetype \
               --disable-pdfimport \
-              --disable-pdfium \
-              --disable-postgresql-sdbc \
-              --disable-report-builder \
-              --disable-scripting-beanshell \
-              --disable-scripting-javascript \
-              --disable-sdremote \
-              --disable-sdremote-bluetooth \
-              --enable-python=no \
-              --with-galleries=no \
-              --with-help=no \
-              --with-myspell-dicts=no \
-              --without-java \
-              --without-junit \
-              --without-system-dicts \
-              --without-theme \
-              --with-doxygen=/usr/bin/doxygen \
-              --with-help=html
+              --disable-epm \
+              --without-package-format \
+              --with-doxygen=/usr/bin/doxygen 
       
       - name: Build LibreOffice
         run: |
             # Set compiler
-            export CC="gcc"
-            export CXX="g++"
+            export CFLAGS="--coverage"
+            export CXXFLAGS="--coverage"
             make -j$(nproc)
       
       - name: Create LibreOffice build tar for Collabora
@@ -308,4 +259,3 @@ jobs:
           path: libreoffice-external-*.tar.gz
           retention-days: 30
         continue-on-error: true
-        
