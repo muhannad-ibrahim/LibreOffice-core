@@ -182,7 +182,7 @@ jobs:
               --with-extra-cxx-flags="--coverage" \
               --with-system-libpng \
               --with-system-jpeg \
-              --disable-symbols \ 
+              --disable-symbols \
               --with-system-freetype \
               --with-lang=en-US \
               --disable-pdfimport \
