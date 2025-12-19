@@ -244,29 +244,59 @@ jobs:
             export CXX="g++"
             make -j$(nproc)
       
-      - name: Create external tar for Collabora build
+      - name: Create LibreOffice build tar for Collabora
         run: |
-          echo "Creating external tar file from LibreOffice workdir/UnpackedTarball..."
-          if [ -d "workdir/UnpackedTarball" ]; then
-            # Fix permissions on all files in UnpackedTarball to ensure they're readable
-            echo "Fixing permissions on UnpackedTarball files..."
-            chmod -R u+r workdir/UnpackedTarball 2>/dev/null || sudo chmod -R u+r workdir/UnpackedTarball 2>/dev/null || true
-            chmod -R u+rx workdir/UnpackedTarball 2>/dev/null || sudo chmod -R u+rx workdir/UnpackedTarball 2>/dev/null || true
-            
-            # Create tar file
-            TAR_FILE="libreoffice-external-$(date +%Y%m%d-%H%M%S).tar.gz"
+          echo "Creating LibreOffice build tar (instdir + include + UnpackedTarball)..."
+          
+          # Check what we have
+          echo "Checking for instdir..."
+          ls -la instdir 2>/dev/null | head -5 || echo "instdir not found in root"
+          echo "Checking for include..."
+          ls -la include 2>/dev/null | head -5 || echo "include not found in root"
+          echo "Checking for workdir/UnpackedTarball..."
+          ls -la workdir/UnpackedTarball 2>/dev/null | head -5 || echo "UnpackedTarball not found"
+          
+          # Fix permissions
+          echo "Fixing permissions..."
+          [ -d "workdir/UnpackedTarball" ] && chmod -R u+r workdir/UnpackedTarball 2>/dev/null || true
+          [ -d "instdir" ] && chmod -R u+r instdir 2>/dev/null || true
+          [ -d "include" ] && chmod -R u+r include 2>/dev/null || true
+          
+          # Create tar file with instdir, include, and UnpackedTarball
+          TAR_FILE="libreoffice-external-$(date +%Y%m%d-%H%M%S).tar.gz"
+          
+          if [ -d "instdir" ] && [ -d "include" ]; then
+            echo "Creating tar with instdir, include, and UnpackedTarball..."
+            tar -czf "$TAR_FILE" \
+              instdir \
+              include \
+              workdir/UnpackedTarball 2>/dev/null || \
+            tar -czf "$TAR_FILE" \
+              instdir \
+              include
+          elif [ -d "instdir" ]; then
+            echo "Creating tar with instdir and UnpackedTarball..."
+            tar -czf "$TAR_FILE" \
+              instdir \
+              workdir/UnpackedTarball 2>/dev/null || \
+            tar -czf "$TAR_FILE" instdir
+          elif [ -d "workdir/UnpackedTarball" ]; then
+            echo "Warning: Only UnpackedTarball found, creating tar with it..."
             tar -czf "$TAR_FILE" -C workdir UnpackedTarball
-            
-            # Check if tar was created successfully
-            if [ -f "$TAR_FILE" ]; then
-              echo "External tar created successfully: $TAR_FILE"
-              ls -lh "$TAR_FILE"
-            else
-              echo "Warning: Failed to create tar file"
-              exit 1
-            fi
           else
-            echo "Warning: workdir/UnpackedTarball directory not found, skipping tar creation"
+            echo "ERROR: Neither instdir nor UnpackedTarball found!"
+            exit 1
+          fi
+          
+          # Check if tar was created successfully
+          if [ -f "$TAR_FILE" ]; then
+            echo "✓ LibreOffice build tar created successfully: $TAR_FILE"
+            ls -lh "$TAR_FILE"
+            echo "Checking tar contents..."
+            tar -tzf "$TAR_FILE" | head -20
+          else
+            echo "ERROR: Failed to create tar file"
+            exit 1
           fi
         continue-on-error: true
       
@@ -278,3 +308,4 @@ jobs:
           path: libreoffice-external-*.tar.gz
           retention-days: 30
         continue-on-error: true
+        
