@@ -182,7 +182,9 @@ jobs:
               --with-extra-cxx-flags="--coverage" \
               --with-system-libpng \
               --with-system-jpeg \
+              --disable-symbols \ 
               --with-system-freetype \
+              --with-lang=en-US \
               --disable-pdfimport \
               --disable-epm \
               --without-package-format \
@@ -197,7 +199,7 @@ jobs:
       
       - name: Create LibreOffice build tar for Collabora
         run: |
-          echo "Creating LibreOffice build tar (instdir + include + UnpackedTarball)..."
+          echo "Creating LibreOffice build tar (instdir + include + UnpackedTarball + LinkTarget)..."
           
           # Check what we have
           echo "Checking for instdir..."
@@ -206,18 +208,26 @@ jobs:
           ls -la include 2>/dev/null | head -5 || echo "include not found in root"
           echo "Checking for workdir/UnpackedTarball..."
           ls -la workdir/UnpackedTarball 2>/dev/null | head -5 || echo "UnpackedTarball not found"
+          echo "Checking for workdir/LinkTarget..."
+          ls -la workdir/LinkTarget 2>/dev/null | head -5 || echo "LinkTarget not found"
           
           # Fix permissions
           echo "Fixing permissions..."
           [ -d "workdir/UnpackedTarball" ] && chmod -R u+r workdir/UnpackedTarball 2>/dev/null || true
+          [ -d "workdir/LinkTarget" ] && chmod -R u+r workdir/LinkTarget 2>/dev/null || true
           [ -d "instdir" ] && chmod -R u+r instdir 2>/dev/null || true
           [ -d "include" ] && chmod -R u+r include 2>/dev/null || true
           
-          # Create tar file with instdir, include, and UnpackedTarball
+          # Create tar file with instdir, include, UnpackedTarball, and LinkTarget
           TAR_FILE="libreoffice-external-$(date +%Y%m%d-%H%M%S).tar.gz"
           
           if [ -d "instdir" ] && [ -d "include" ]; then
-            echo "Creating tar with instdir, include, and UnpackedTarball..."
+            echo "Creating tar with instdir, include, UnpackedTarball, and LinkTarget..."
+            tar -czf "$TAR_FILE" \
+              instdir \
+              include \
+              workdir/UnpackedTarball \
+              workdir/LinkTarget 2>/dev/null || \
             tar -czf "$TAR_FILE" \
               instdir \
               include \
@@ -226,13 +236,18 @@ jobs:
               instdir \
               include
           elif [ -d "instdir" ]; then
-            echo "Creating tar with instdir and UnpackedTarball..."
+            echo "Creating tar with instdir, UnpackedTarball, and LinkTarget..."
+            tar -czf "$TAR_FILE" \
+              instdir \
+              workdir/UnpackedTarball \
+              workdir/LinkTarget 2>/dev/null || \
             tar -czf "$TAR_FILE" \
               instdir \
               workdir/UnpackedTarball 2>/dev/null || \
             tar -czf "$TAR_FILE" instdir
           elif [ -d "workdir/UnpackedTarball" ]; then
-            echo "Warning: Only UnpackedTarball found, creating tar with it..."
+            echo "Warning: Only UnpackedTarball and LinkTarget found, creating tar with them..."
+            tar -czf "$TAR_FILE" -C workdir UnpackedTarball LinkTarget 2>/dev/null || \
             tar -czf "$TAR_FILE" -C workdir UnpackedTarball
           else
             echo "ERROR: Neither instdir nor UnpackedTarball found!"
