@@ -23,7 +23,7 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0 # Shallow clone for faster checkout
-      
+
       - name: Install build dependencies
         run: |
           # Enable deb-src repositories for build-dep to work
@@ -167,109 +167,111 @@ jobs:
               libsane-dev \
               unixodbc-dev \
               libcurl4-openssl-dev \
-              libpoppler-dev \
               doxygen
-          
+
       - name: Configure build
         run: |
           # Configure with coverage flags for compilation and linking
           # Set LDFLAGS to include coverage for linking gcov runtime
-          export CC="gcc-12"
-          export CXX="g++-12"
+          export CC="gcc"
+          export CXX="g++"
           ./autogen.sh \
-              --with-distro=CPLinux-LOKit \
-              --with-extra-cc-flags="--coverage" \
-              --with-extra-cxx-flags="--coverage" \
-              --with-system-jpeg \
-              --disable-symbols \
-              --with-system-freetype \
-              --with-lang=en-US \
-              --disable-pdfimport \
               --disable-epm \
               --without-package-format \
-              --with-doxygen=/usr/bin/doxygen 
+              --enable-debug \
+              --with-extra-cc-flags="--coverage" \
+              --with-extra-cxx-flags="--coverage" \
+              --with-system-libs \
+              --with-system-md4c=no \
+              --with-system-xmlsec=no \
+              --with-system-mdds=no \
+              --with-system-dragonbox=no \
+              --with-system-fast-float=no \
+              --with-system-frozen=no \
+              --with-system-libfixmath=no \
+              --with-system-orcus=no \
+              --with-system-harfbuzz=no \
+              --with-system-graphite=no \
+              --with-system-argon2=no \
+              --with-system-zxcvbn=no \
+              --disable-firebird-sdbc \
+              --disable-skia \
+              --enable-symbols \
+              --disable-cups \
+              --disable-zxing \
+              --disable-coinmp \
+              --disable-gpgmepp \
+              --disable-dbus \
+              --disable-epm \
+              --disable-libcmis \
+              --disable-gio \
+              --disable-gstreamer-1-0 \
+              --disable-gtk3 \
+              --disable-gtk4 \
+              --disable-introspection \
+              --disable-ldap \
+              --disable-lotuswordpro \
+              --disable-lpsolve \
+              --disable-mariadb-sdbc \
+              --disable-odk \
+              --disable-online-update \
+              --disable-pdfimport \
+              --disable-pdfium \
+              --disable-postgresql-sdbc \
+              --disable-report-builder \
+              --disable-scripting-beanshell \
+              --disable-scripting-javascript \
+              --disable-sdremote \
+              --disable-sdremote-bluetooth \
+              --enable-python=no \
+              --with-galleries=no \
+              --with-help=no \
+              --with-myspell-dicts=no \
+              --without-java \
+              --without-junit \
+              --without-system-dicts \
+              --without-theme \
+              --with-doxygen=/usr/bin/doxygen \
+              --with-help=html
       
       - name: Build LibreOffice
         run: |
             # Set compiler
-            export CFLAGS="--coverage"
-            export CXXFLAGS="--coverage"
+            export CC="gcc"
+            export CXX="g++"
             make -j$(nproc)
       
-      - name: Create LibreOffice build tar for Collabora
+      - name: Run regression tests
         run: |
-          echo "Creating LibreOffice build tar (instdir + include + UnpackedTarball + LinkTarget)..."
-          
-          # Check what we have
-          echo "Checking for instdir..."
-          ls -la instdir 2>/dev/null | head -5 || echo "instdir not found in root"
-          echo "Checking for include..."
-          ls -la include 2>/dev/null | head -5 || echo "include not found in root"
-          echo "Checking for workdir/UnpackedTarball..."
-          ls -la workdir/UnpackedTarball 2>/dev/null | head -5 || echo "UnpackedTarball not found"
-          echo "Checking for workdir/LinkTarget..."
-          ls -la workdir/LinkTarget 2>/dev/null | head -5 || echo "LinkTarget not found"
-          
-          # Fix permissions
-          echo "Fixing permissions..."
-          [ -d "workdir/UnpackedTarball" ] && chmod -R u+r workdir/UnpackedTarball 2>/dev/null || true
-          [ -d "workdir/LinkTarget" ] && chmod -R u+r workdir/LinkTarget 2>/dev/null || true
-          [ -d "instdir" ] && chmod -R u+r instdir 2>/dev/null || true
-          [ -d "include" ] && chmod -R u+r include 2>/dev/null || true
-          
-          # Create tar file with instdir, include, UnpackedTarball, and LinkTarget
-          TAR_FILE="libreoffice-external-$(date +%Y%m%d-%H%M%S).tar.gz"
-          
-          if [ -d "instdir" ] && [ -d "include" ]; then
-            echo "Creating tar with instdir, include, UnpackedTarball, and LinkTarget..."
-            tar -czf "$TAR_FILE" \
-              instdir \
-              include \
-              workdir/UnpackedTarball \
-              workdir/LinkTarget 2>/dev/null || \
-            tar -czf "$TAR_FILE" \
-              instdir \
-              include \
-              workdir/UnpackedTarball 2>/dev/null || \
-            tar -czf "$TAR_FILE" \
-              instdir \
-              include
-          elif [ -d "instdir" ]; then
-            echo "Creating tar with instdir, UnpackedTarball, and LinkTarget..."
-            tar -czf "$TAR_FILE" \
-              instdir \
-              workdir/UnpackedTarball \
-              workdir/LinkTarget 2>/dev/null || \
-            tar -czf "$TAR_FILE" \
-              instdir \
-              workdir/UnpackedTarball 2>/dev/null || \
-            tar -czf "$TAR_FILE" instdir
-          elif [ -d "workdir/UnpackedTarball" ]; then
-            echo "Warning: Only UnpackedTarball and LinkTarget found, creating tar with them..."
-            tar -czf "$TAR_FILE" -C workdir UnpackedTarball LinkTarget 2>/dev/null || \
-            tar -czf "$TAR_FILE" -C workdir UnpackedTarball
-          else
-            echo "ERROR: Neither instdir nor UnpackedTarball found!"
-            exit 1
-          fi
-          
-          # Check if tar was created successfully
-          if [ -f "$TAR_FILE" ]; then
-            echo "✓ LibreOffice build tar created successfully: $TAR_FILE"
-            ls -lh "$TAR_FILE"
-            echo "Checking tar contents..."
-            tar -tzf "$TAR_FILE" | head -20
-          else
-            echo "ERROR: Failed to create tar file"
-            exit 1
-          fi
+          echo "Running LibreOffice regression tests..."
+          export CC="gcc"
+          export CXX="g++"
+          make check || echo "Some tests failed, but continuing..."
         continue-on-error: true
+        timeout-minutes: 60
       
-      - name: Upload external tar artifact
+      - name: Package build artifacts for coverage testing
+        if: success()
+        run: |
+          echo "Packaging build artifacts for reuse in coverage testing..."
+          cd ${{ github.workspace }}
+          
+          # Create tar archive with only what's needed for CoverageDiff
+          # - instdir/: compiled libraries and binaries
+          # - include/LibreOfficeKit/: header files for API
+          tar -czf libreoffice-build-artifacts.tar.gz instdir/ include/LibreOfficeKit/
+          
+          echo "Build artifacts packaged successfully"
+          ls -lh libreoffice-build-artifacts.tar.gz
+          
+          # Display size
+          SIZE=$(du -h libreoffice-build-artifacts.tar.gz | cut -f1)
+          echo "Archive size: $SIZE"
+      
+      - name: Upload build artifacts
+        if: success()
         uses: actions/upload-artifact@v4
-        if: always()
         with:
-          name: libreoffice-external-tar
-          path: libreoffice-external-*.tar.gz
+          name: libreoffice-build-artifacts
+          path: libreoffice-build-artifacts.tar.gz
           retention-days: 30
-        continue-on-error: true
