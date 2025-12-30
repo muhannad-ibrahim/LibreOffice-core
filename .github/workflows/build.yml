@@ -24,6 +24,8 @@ jobs:
           submodules: recursive
           fetch-depth: 0 # Shallow clone for faster checkout
 
+      
+      
       - name: Install build dependencies
         run: |
           # Enable deb-src repositories for build-dep to work
@@ -169,6 +171,7 @@ jobs:
               libcurl4-openssl-dev \
               doxygen
 
+          
       - name: Configure build
         run: |
           # Configure with coverage flags for compilation and linking
@@ -249,17 +252,33 @@ jobs:
           make check || echo "Some tests failed, but continuing..."
         continue-on-error: true
         timeout-minutes: 60
-      
+        
       - name: Package build artifacts for coverage testing
         if: success()
         run: |
           echo "Packaging build artifacts for reuse in coverage testing..."
           cd ${{ github.workspace }}
           
-          # Create tar archive with only what's needed for CoverageDiff
-          # - instdir/: compiled libraries and binaries
+          # Check if .gcno files exist (needed for gcov)
+          echo "Checking for .gcno files..."
+          echo "In instdir/program: $(find instdir/program -name "*.gcno" -type f 2>/dev/null | wc -l) files"
+          echo "In workdir/LinkTarget: $(find workdir/LinkTarget -name "*.gcno" -type f 2>/dev/null | wc -l) files"
+          
+          # Copy .gcno files from workdir/LinkTarget to instdir/program so they're next to .so files
+          # This is needed for gcov to find them when processing .gcda files
+          echo "Copying .gcno files to instdir/program..."
+          find workdir/LinkTarget -name "*.gcno" -type f -exec sh -c 'for f; do bn=$(basename "$f"); if [ -f "instdir/program/${bn%.gcno}.so"* ] || [ -f "instdir/program/${bn%.gcno}.so" ]; then cp "$f" "instdir/program/"; fi; done' _ {} + 2>/dev/null || echo "Note: Some .gcno files may not have matching .so files"
+          
+          echo "After copy, instdir/program has $(find instdir/program -name "*.gcno" -type f 2>/dev/null | wc -l) .gcno files"
+          
+          # Create tar archive with what's needed for CoverageDiff
+          # - instdir/: compiled libraries, binaries, and .gcno files (now copied here)
           # - include/LibreOfficeKit/: header files for API
-          tar -czf libreoffice-build-artifacts.tar.gz instdir/ include/LibreOfficeKit/
+          # - workdir/LinkTarget/: source .gcno files (backup location)
+          tar -czf libreoffice-build-artifacts.tar.gz \
+            instdir/ \
+            include/LibreOfficeKit/ \
+            workdir/LinkTarget/
           
           echo "Build artifacts packaged successfully"
           ls -lh libreoffice-build-artifacts.tar.gz
