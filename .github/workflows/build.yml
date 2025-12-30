@@ -23,8 +23,6 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0 # Shallow clone for faster checkout
-
-      
       
       - name: Install build dependencies
         run: |
@@ -170,14 +168,17 @@ jobs:
               unixodbc-dev \
               libcurl4-openssl-dev \
               doxygen
-
-          
+        
       - name: Configure build
         run: |
           # Configure with coverage flags for compilation and linking
           # Set LDFLAGS to include coverage for linking gcov runtime
-          export CC="gcc"
-          export CXX="g++"
+          # Use gcc-12/g++-12 to match installed version and ensure compatible gcov version
+          export CC="gcc-12"
+          export CXX="g++-12"
+          # Verify gcov version compatibility
+          echo "GCC version: $(gcc-12 --version)"
+          echo "GCOV version: $(gcov-12 --version || gcc-12 -print-prog-name=gcov | xargs --version)"
           ./autogen.sh \
               --disable-epm \
               --without-package-format \
@@ -240,8 +241,8 @@ jobs:
       - name: Build LibreOffice
         run: |
             # Set compiler
-            export CC="gcc"
-            export CXX="g++"
+            export CC="gcc-12"
+            export CXX="g++-12"
             make -j$(nproc)
       
       - name: Run regression tests
@@ -252,7 +253,7 @@ jobs:
           make check || echo "Some tests failed, but continuing..."
         continue-on-error: true
         timeout-minutes: 60
-        
+      
       - name: Package build artifacts for coverage testing
         if: success()
         run: |
@@ -271,14 +272,26 @@ jobs:
           
           echo "After copy, instdir/program has $(find instdir/program -name "*.gcno" -type f 2>/dev/null | wc -l) .gcno files"
           
+          # Also copy .gcno files from workdir/GenCxxObject/ to instdir/program/ to match .so files
+          echo "Copying .gcno files from workdir/GenCxxObject/ to instdir/program/..."
+          find workdir/GenCxxObject -name "*.gcno" -type f 2>/dev/null | while read gcno_file; do
+            gcno_name=$(basename "$gcno_file")
+            so_base="${gcno_name%.gcno}"
+            # Try to find matching .so file in instdir/program/
+            if find instdir/program -name "${so_base}.so*" -o -name "lib${so_base}.so*" 2>/dev/null | grep -q .; then
+              cp "$gcno_file" instdir/program/ 2>/dev/null || true
+            fi
+          done
+          echo "After copy from GenCxxObject, instdir/program has $(find instdir/program -name "*.gcno" -type f 2>/dev/null | wc -l) .gcno files"
+          
           # Create tar archive with what's needed for CoverageDiff
           # - instdir/: compiled libraries, binaries, and .gcno files (now copied here)
           # - include/LibreOfficeKit/: header files for API
-          # - workdir/LinkTarget/: source .gcno files (backup location)
+          # - workdir/GenCxxObject/: source .gcno files (for matching with .gcda files)
           tar -czf libreoffice-build-artifacts.tar.gz \
             instdir/ \
             include/LibreOfficeKit/ \
-            workdir/LinkTarget/
+            workdir/GenCxxObject/
           
           echo "Build artifacts packaged successfully"
           ls -lh libreoffice-build-artifacts.tar.gz
